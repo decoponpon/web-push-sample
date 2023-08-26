@@ -48,7 +48,7 @@ onMounted(async () => {
     if ('serviceWorker' in navigator) {
         // Service Worker を登録する
         try {
-            const swReg = await navigator.serviceWorker.register('./service_worker.js');
+            const swReg = await navigator.serviceWorker.register('/worker/service_worker.js');
             console.log('Service Worker is registerd', swReg);
         } catch (e) {
             console.error(`Service Worker registration failed`, e);
