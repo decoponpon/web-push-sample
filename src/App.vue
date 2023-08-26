@@ -42,8 +42,13 @@ const registerServiceWorker = async () => {
     // Service Worker を登録する
     let serviceWorkerRegistration: ServiceWorkerRegistration;
     try {
+        // NOTE: type: module を指定することで ES Modules のスクリプトを利用できる
+        // NOTE: Safari でも動くか要確認
         serviceWorkerRegistration = await navigator.serviceWorker.register(
-            '/worker/service_worker.js'
+            '/worker/service_worker.js',
+            {
+                type: 'module'
+            }
         );
         console.log('Service Worker is registerd', serviceWorkerRegistration);
     } catch (e) {
