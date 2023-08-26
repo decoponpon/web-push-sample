@@ -6,6 +6,7 @@ type GetPublicKeyResponse = {
 };
 
 let subscriptionJson: PushSubscriptionJSON | null = null;
+let vapidPublicKey = '';
 
 /**
  * 公開鍵(base64)をUint8Arrayに変換する(subscribeの引数用)
@@ -34,6 +35,57 @@ const sendPushMessage = async () => {
     });
 };
 
+const registerServiceWorker = async () => {
+    if (!('serviceWorker' in navigator)) {
+        return;
+    }
+    // Service Worker を登録する
+    let serviceWorkerRegistration: ServiceWorkerRegistration;
+    try {
+        // NOTE: type: module を指定することで ES Modules のスクリプトを利用できる
+        // NOTE: Safari でも動くか要確認
+        serviceWorkerRegistration = await navigator.serviceWorker.register(
+            '/worker/service_worker.js',
+            {
+                type: 'module'
+            }
+        );
+        console.log('Service Worker is registerd', serviceWorkerRegistration);
+    } catch (e) {
+        console.error(`Service Worker registration failed`, e);
+        return;
+    }
+
+    // Service Worker が activate されたら Push 通知を購読する
+    let serviceWorker = serviceWorkerRegistration.installing;
+    if (serviceWorkerRegistration.waiting) {
+        serviceWorker = serviceWorkerRegistration.waiting;
+    } else if (serviceWorkerRegistration.active) {
+        serviceWorker = serviceWorkerRegistration.active;
+    }
+    serviceWorker?.addEventListener('statechange', async () => {
+        if (!serviceWorker || serviceWorker.state !== 'activated') {
+            return;
+        }
+        const options = {
+            userVisibleOnly: true,
+            applicationServerKey: urlB64ToUint8Array(vapidPublicKey)
+        };
+        let subscription;
+        try {
+            subscription = await serviceWorkerRegistration.pushManager.subscribe(options);
+        } catch (e) {
+            console.log(`Push通知の購読に失敗しました`, e);
+            return;
+        }
+        subscriptionJson = subscription.toJSON();
+        // Push通知表示を許可するための確認を表示
+        Notification.requestPermission((permission) => {
+            console.log(permission); // 'default', 'granted', 'denied'
+        });
+    });
+};
+
 onMounted(async () => {
     // 公開キーを取得
     const response: GetPublicKeyResponse = await fetch('http://localhost:4000/public-key', {
@@ -43,33 +95,15 @@ onMounted(async () => {
             'Access-Control-Allow-Origin': 'http://localhost:5173'
         }
     }).then((res) => res.json());
-    const vapidPublicKey = response.publicKey;
+    vapidPublicKey = response.publicKey;
 
-    if ('serviceWorker' in navigator) {
-        // Service Worker を登録する
-        try {
-            const swReg = await navigator.serviceWorker.register('./service_worker.js');
-            console.log('Service Worker is registerd', swReg);
-        } catch (e) {
-            console.error(`Service Worker registration failed`, e);
-        }
-
-        // Push通知を購読する
-        try {
-            const reg = await navigator.serviceWorker.ready;
-            const options = {
-                userVisibleOnly: true,
-                applicationServerKey: urlB64ToUint8Array(vapidPublicKey)
-            };
-            const subscription = await reg.pushManager.subscribe(options);
-            subscriptionJson = subscription.toJSON();
-            // Push通知表示を許可するための確認を表示
-            Notification.requestPermission((permission) => {
-                console.log(permission); // 'default', 'granted', 'denied'
-            });
-        } catch (e) {
-            console.log(`Push通知の購読に失敗しました`, e);
-        }
+    // 登録済みの service worker 及び、購読済みの push manager を削除
+    const registeredServiceWorkerList = await navigator.serviceWorker.getRegistrations();
+    for (const registeredSW of registeredServiceWorkerList) {
+        const subscribedPushManger = await registeredSW.pushManager.getSubscription();
+        await subscribedPushManger?.unsubscribe();
+        await registeredSW.unregister();
+        console.log('既存の service worker 登録解除');
     }
 });
 </script>
@@ -79,6 +113,7 @@ onMounted(async () => {
         <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
 
         <div class="wrapper">
+            <button @click="registerServiceWorker">ServiceWorker登録</button>
             <button @click="sendPushMessage">Push通知送信</button>
         </div>
     </header>

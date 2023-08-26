@@ -12,6 +12,7 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "vite-plugin-pwa": "^0.16.4",
     "vue": "^3.3.4"
   },
   "devDependencies": {
