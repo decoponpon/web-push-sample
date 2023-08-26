@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import type {
     MessageDataFromServiceWorker,
     MessageDataFromWindow
@@ -141,6 +141,11 @@ onMounted(async () => {
 
     // Service Worker から postMessage されたときの処理を登録
     broadcastChannelForServiceWorker.onmessage = handleMessageFromServiceWorker;
+});
+
+onUnmounted(() => {
+    // ページから離れる際には BroadcastChannel を close
+    broadcastChannelForServiceWorker.close();
 });
 </script>
 
