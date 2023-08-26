@@ -140,19 +140,17 @@ onMounted(async () => {
 <template>
     <header>
         <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
+    </header>
 
+    <div class="wrapper">
         <div>Push 通知回数: {{ pushNum }}</div>
-
         <label>
-            Push 通知メッセージ プラスα
+            Push 通知 プラスα メッセージ
             <input type="text" v-model="pulsPushMessage" />
         </label>
-
-        <div class="wrapper">
-            <button @click="registerServiceWorker">ServiceWorker登録</button>
-            <button @click="sendPushMessage">Push通知送信</button>
-        </div>
-    </header>
+        <button @click="registerServiceWorker">ServiceWorker登録</button>
+        <button @click="sendPushMessage">Push通知送信</button>
+    </div>
 </template>
 
 <style scoped>
@@ -166,6 +164,13 @@ header {
     margin: 0 auto 2rem;
 }
 
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    place-items: flex-start;
+    flex-wrap: wrap;
+}
+
 @media (min-width: 1024px) {
     header {
         display: flex;
@@ -175,12 +180,6 @@ header {
 
     .logo {
         margin: 0 2rem 0 0;
-    }
-
-    header .wrapper {
-        display: flex;
-        place-items: flex-start;
-        flex-wrap: wrap;
     }
 }
 </style>
