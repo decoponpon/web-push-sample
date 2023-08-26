@@ -1,12 +1,21 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 
 type GetPublicKeyResponse = {
     publicKey: string;
 };
 
+// Service Worker とデータのやり取りをするための BroadcastChannel (https://developer.mozilla.org/ja/docs/Web/API/BroadcastChannel)
+// Service Worker へのデータの送信は ServiceWorker.postMessage() でも可能(https://developer.mozilla.org/ja/docs/Web/API/ServiceWorker/postMessage)
+// MessageChannel を使っても同様にデータのやり取りができるが、 BroadcastChannel は同一オリジンでのやり取りに限定されるのでこちらを使用
+const broadcastChannelForServiceWorker = new BroadcastChannel('service_worker_channel');
+
 let subscriptionJson: PushSubscriptionJSON | null = null;
 let vapidPublicKey = '';
+let serviceWorker: ServiceWorker | null = null;
+
+const pulsPushMessage = ref('');
+const pushNum = ref(0);
 
 /**
  * 公開鍵(base64)をUint8Arrayに変換する(subscribeの引数用)
@@ -24,7 +33,20 @@ const urlB64ToUint8Array = (base64String: string) => {
     return outputArray;
 };
 
+/**
+ * バックエンドを介して Push 通知を送る
+ * リクエスト前に Service Worker に必要なデータを送信
+ */
 const sendPushMessage = async () => {
+    if (!serviceWorker) {
+        window.alert('Service Worker が登録されていません');
+        return;
+    }
+    // ServiceWorker.postMessage() でデータを送信
+    serviceWorker.postMessage({ pulsPushMessage: pulsPushMessage.value });
+    // BroadcastChannel で送る場合は下記
+    // broadcastChannelForServiceWorker.postMessage({ pulsPushMessage: pulsPushMessage.value });
+
     fetch('http://localhost:4000/web-push', {
         method: 'POST',
         headers: {
@@ -57,7 +79,7 @@ const registerServiceWorker = async () => {
     }
 
     // Service Worker が activate されたら Push 通知を購読する
-    let serviceWorker = serviceWorkerRegistration.installing;
+    serviceWorker = serviceWorkerRegistration.installing;
     if (serviceWorkerRegistration.waiting) {
         serviceWorker = serviceWorkerRegistration.waiting;
     } else if (serviceWorkerRegistration.active) {
@@ -86,6 +108,10 @@ const registerServiceWorker = async () => {
     });
 };
 
+const handleMessageFromServiceWorker = (event: MessageEvent) => {
+    pushNum.value = event.data.pushNum;
+};
+
 onMounted(async () => {
     // 公開キーを取得
     const response: GetPublicKeyResponse = await fetch('http://localhost:4000/public-key', {
@@ -105,12 +131,22 @@ onMounted(async () => {
         await registeredSW.unregister();
         console.log('既存の service worker 登録解除');
     }
+
+    // Service Worker から postMessage されたときの処理を登録
+    broadcastChannelForServiceWorker.onmessage = handleMessageFromServiceWorker;
 });
 </script>
 
 <template>
     <header>
         <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
+
+        <div>Push 通知回数: {{ pushNum }}</div>
+
+        <label>
+            Push 通知メッセージ プラスα
+            <input type="text" v-model="pulsPushMessage" />
+        </label>
 
         <div class="wrapper">
             <button @click="registerServiceWorker">ServiceWorker登録</button>
@@ -130,31 +166,6 @@ header {
     margin: 0 auto 2rem;
 }
 
-nav {
-    width: 100%;
-    font-size: 12px;
-    text-align: center;
-    margin-top: 2rem;
-}
-
-nav a.router-link-exact-active {
-    color: var(--color-text);
-}
-
-nav a.router-link-exact-active:hover {
-    background-color: transparent;
-}
-
-nav a {
-    display: inline-block;
-    padding: 0 1rem;
-    border-left: 1px solid var(--color-border);
-}
-
-nav a:first-of-type {
-    border: 0;
-}
-
 @media (min-width: 1024px) {
     header {
         display: flex;
@@ -170,15 +181,6 @@ nav a:first-of-type {
         display: flex;
         place-items: flex-start;
         flex-wrap: wrap;
-    }
-
-    nav {
-        text-align: left;
-        margin-left: -1rem;
-        font-size: 1rem;
-
-        padding: 1rem 0;
-        margin-top: 1rem;
     }
 }
 </style>
