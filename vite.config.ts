@@ -10,7 +10,7 @@ export default defineConfig({
         vue(),
         VitePWA({
             srcDir: 'src',
-            filename: 'worker/service_worker.js',
+            filename: 'worker/service_worker.ts',
             strategies: 'injectManifest',
             injectRegister: false,
             manifest: false,

@@ -5,4 +5,3 @@ const incrementPushNum = () => {
 };
 
 export { pushNum, incrementPushNum };
-

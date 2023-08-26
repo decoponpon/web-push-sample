@@ -1,9 +1,12 @@
+/// <reference lib="WebWorker" />
+declare const self: ServiceWorkerGlobalScope;
+
 import { pushNum, incrementPushNum } from './pushNum';
 
 // pushイベントハンドラを登録
-self.addEventListener('push', (event) => {
+self.addEventListener('push', (event: PushEvent) => {
     // 通知設定が行われているかをチェック
-    if (!self.Notification || self.Notification.permission !== 'granted') {
+    if (Notification.permission !== 'granted') {
         // 通知設定が行われていなければ何もせず終了
         return;
     }
@@ -26,3 +29,5 @@ self.addEventListener('notificationclick', (event) => {
     console.log('通知がクリックされました');
     event.notification.close();
 });
+
+export type {};
