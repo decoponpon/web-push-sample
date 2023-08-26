@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import type {
+    MessageDataFromServiceWorker,
+    MessageDataFromWindow
+} from './worker/types/messageData';
 
 type GetPublicKeyResponse = {
     publicKey: string;
@@ -43,7 +47,10 @@ const sendPushMessage = async () => {
         return;
     }
     // ServiceWorker.postMessage() でデータを送信
-    serviceWorker.postMessage({ pulsPushMessage: pulsPushMessage.value });
+    const message: MessageDataFromWindow = {
+        pulsPushMessage: pulsPushMessage.value
+    };
+    serviceWorker.postMessage(message);
     // BroadcastChannel で送る場合は下記
     // broadcastChannelForServiceWorker.postMessage({ pulsPushMessage: pulsPushMessage.value });
 
@@ -108,7 +115,7 @@ const registerServiceWorker = async () => {
     });
 };
 
-const handleMessageFromServiceWorker = (event: MessageEvent) => {
+const handleMessageFromServiceWorker = (event: MessageEvent<MessageDataFromServiceWorker>) => {
     pushNum.value = event.data.pushNum;
 };
 
@@ -183,3 +190,4 @@ header {
     }
 }
 </style>
+./worker/types/messageData
